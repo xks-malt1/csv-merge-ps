@@ -1,0 +1,7 @@
+# Vstupne a vystupne CSV nepatria do repozitara
+*.csv
+!vzorky/*.csv
+
+# Vysledky
+vystup/*
+!vystup/.gitkeep
