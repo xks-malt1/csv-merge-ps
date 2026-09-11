@@ -8,6 +8,14 @@ Výsledok sa uloží ako `merged_DDMMYYYY.csv` do podpriečinka `vystup`.
 Pred zlúčením skript overí, že všetky súbory majú **rovnakú dátovú
 štruktúru**. Ak nie, nezapíše nič a vypíše, čo presne sa líši.
 
+## Obsah
+
+| Súbor | Čo robí |
+|---|---|
+| `Zluc-Csv.ps1` | hlavný skript — zlúčenie a kontrola štruktúry |
+| `Zluc-Csv.cmd` | spúšťač na dvojklik |
+| `office-script-import-dpd.ts` | Office Script — import zlúčeného CSV do Excelu Online |
+
 ## Použitie
 
 1. Stiahni repozitár (Code → Download ZIP) a rozbaľ ho
@@ -91,6 +99,27 @@ Hotovo.
   Stĺpcov:   16
   Kódovanie: UTF-8 (BOM: áno)
   Výsledok:  C:\prace\csv-merge-ps\vystup\merged_10092026.csv
+```
+
+## Nadväzujúci Office Script
+
+`office-script-import-dpd.ts` importuje zásilky do hárku **Data**
+v Exceli Online. Nadväzuje na zlúčený súbor dvoma spôsobmi:
+
+- **Rozpoznáva hárok podľa predpony** — okrem `zasilky-balik` berie aj
+  `merged`, teda hárok, ktorý vznikne importom `merged_DDMMYYYY.csv`
+  do zošita (Excel hárok pomenuje podľa súboru)
+- **Číta dátum z názvu** — ak názov obsahuje `DDMMYYYY`, použije ho ako
+  dátum odoslania na zberné depo DPD. Vd’aka tomu sedí deň odoslania
+  aj vtedy, keď import spustíš neskôr než prebehlo zlúčenie.
+  Pri hárkoch bez dátumu v názve sa berie dnešný deň.
+
+Duplicity kontroluje podľa DPD čísla aj Z kódu, takže opakované
+spustenie nič nezdvojí. Výpis ukazuje rozpis po hárkoch:
+
+```
+Import dokončený. Pridané zásielky: 412. Preskočené duplicity: 8.
+  merged_10092026: +412, duplicity 8, dátum 10.9.2026 (z názvu)
 ```
 
 ## Požiadavky
