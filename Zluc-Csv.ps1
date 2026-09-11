@@ -26,6 +26,13 @@ $PrisnePoradie = $true
 # Voliteľne: stĺpce na odstránenie z výsledku. Prázdne = ponechať všetky.
 # Podporuje zástupné znaky, napr. "Pozn*"
 $Odstranit = @()
+
+# Čo urobiť so zdrojovými súbormi po úspešnom zlúčení:
+#   "Opytat"   = po zlúčení sa spýtať (predvolené)
+#   "Zmazat"   = natrvalo zmazať bez otázky
+#   "Presunut" = presunúť do podpriečinka _spracovane bez otázky
+#   "Nic"      = nechať tak
+$RezimUpratania = "Opytat"
 # ---------------------------------------------------------------------
 
 $JeP7 = $PSVersionTable.PSVersion.Major -ge 7
@@ -257,3 +264,68 @@ Write-Host ("  Záznamov:  {0}" -f @($zlucene).Count)
 Write-Host ("  Stĺpcov:   {0}" -f $hlavicky.Count)
 Write-Host ("  Kódovanie: UTF-8 (BOM: {0})" -f $(if ($maBom) { "áno" } else { "nie" }))
 Write-Host ("  Výsledok:  {0}" -f $cielovaCesta)
+
+
+# =====================================================================
+#  Upratanie zdrojových súborov
+#
+#  Beží až po overení, že výstup existuje a má správny počet záznamov.
+#  Výstupný súbor sa do zoznamu na upratanie nikdy nedostane.
+# =====================================================================
+
+if ($RezimUpratania -eq "Nic") { return }
+
+if (-not (Test-Path $cielovaCesta)) {
+    Write-Warning "Výstupný súbor neexistuje. Zdroje ostávajú nedotknuté."
+    return
+}
+
+$ocakavane = @($zlucene).Count
+$kontrola  = @(Import-Csv -Path $cielovaCesta -Delimiter $Oddelovac -Encoding UTF8)
+
+if ($kontrola.Count -ne $ocakavane) {
+    Write-Warning ("Výstup má {0} záznamov namiesto {1}. Zdroje ostávajú nedotknuté." -f $kontrola.Count, $ocakavane)
+    return
+}
+
+$naUpratanie = @($subory | Where-Object { $_.FullName -ne $cielovaCesta })
+
+if ($naUpratanie.Count -eq 0) { return }
+
+$rezim = $RezimUpratania
+
+if ($rezim -eq "Opytat") {
+    Write-Host "`nZdrojové súbory ($($naUpratanie.Count)):" -ForegroundColor Yellow
+    foreach ($s in $naUpratanie) { Write-Host ("  {0}" -f $s.Name) }
+
+    Write-Host "`n  [z] zmazať    [p] presunúť do _spracovane    [n] nechať tak" -ForegroundColor Yellow
+    $odpoved = Read-Host "Voľba"
+
+    switch ($odpoved.ToLower()) {
+        "z"     { $rezim = "Zmazat" }
+        "p"     { $rezim = "Presunut" }
+        default { Write-Host "Zdroje ostávajú."; return }
+    }
+}
+
+if ($rezim -eq "Presunut") {
+    $archiv = Join-Path $Zdroj "_spracovane"
+    if (-not (Test-Path $archiv)) { New-Item -ItemType Directory -Path $archiv | Out-Null }
+
+    foreach ($s in $naUpratanie) {
+        $ciel = Join-Path $archiv $s.Name
+        if (Test-Path $ciel) {
+            $cas  = Get-Date -Format "yyyyMMdd-HHmmss"
+            $ciel = Join-Path $archiv ("{0}_{1}{2}" -f $s.BaseName, $cas, $s.Extension)
+        }
+        Move-Item -Path $s.FullName -Destination $ciel
+    }
+    Write-Host ("Presunutých súborov: {0} -> {1}" -f $naUpratanie.Count, $archiv) -ForegroundColor Green
+}
+elseif ($rezim -eq "Zmazat") {
+    $naUpratanie | Remove-Item -Force
+    Write-Host ("Zmazaných súborov: {0}" -f $naUpratanie.Count) -ForegroundColor Green
+}
+else {
+    Write-Warning "Neznámy režim '$RezimUpratania'. Zdroje ostávajú nedotknuté."
+}
